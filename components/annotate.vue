@@ -146,10 +146,8 @@
         },
         mounted: function() {
 
-            if (this.logged) {
-                this.updateStatistics();
-                this.updateLoginInfo();
-            }
+            this.updateStatistics();
+            // this.updateLoginInfo();
 
             this.reset();
 
@@ -174,6 +172,7 @@
         // },
         methods: {
             reset: function() {
+                var self = this;
                 setTimeout(function() {
                     self.buttons.okToClick = true;
                 }, 2000);
@@ -214,7 +213,7 @@
                         return;
                     }
                 }
-                self = this;
+                var self = this;
                 $.ajax("api/?action=submit", {
                     method: "POST",
                     data: this.submitData,
@@ -224,6 +223,7 @@
                                 $("#" + self.commentID).modal("hide");
                             }
                             self.updateStatistics();
+                            self.reset();
                         }
                         else {
                             self.modal(self.lang.error, data.error);
@@ -232,7 +232,7 @@
                 });
             },
             updateLoginInfo() {
-                self = this;
+                var self = this;
                 $.ajax("api/?action=loginInfo", {
                     success: function(data) {
                         self.logged_user = data.login;
@@ -240,7 +240,7 @@
                 });
             },
             updateStatistics() {
-                self = this;
+                var self = this;
                 $.ajax("api/?action=statistics", {
                     success: function(data) {
                         if (data.result === "OK") {
@@ -248,15 +248,15 @@
                             self.photo = data.data.nextPhoto;
                         }
                         else {
-                            self.modalData.body = data.error;
-                            self.modalData.title = self.lang.error;
-                            $("#" + self.modalID).modal();
+                            // self.modalData.body = data.error;
+                            // self.modalData.title = self.lang.error;
+                            // $("#" + self.modalID).modal();
                         }
                     }
                 });
             },
             login: function(data) {
-                self = this;
+                var self = this;
                 $.ajax("api/?action=login", {
                     method: "POST",
                     data: data,
@@ -269,6 +269,7 @@
                             else {
                                 self.$emit("update:logged", true);
                                 self.logged_user = data.data;
+                                self.updateStatistics();
                             }
                         }
                         else {

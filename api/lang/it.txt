@@ -27,7 +27,7 @@ insert	Inserisci testo
 confirm	Conferma
 cancel	Annulla
 
-adminpanel	Pannello amministrativo
+adminpanel	Admin
 loginpanel	Torna al login come utente
 login_failed	Login non riuscito
 logout_ok	Logout effettuato correttamente
@@ -41,9 +41,12 @@ must_name	Inserire un nome
 institution_code	Codice istituzione
 no_institution_code	Codice istituzione non valido
 create_users	Genera utenti
-ok_create_users	Utenti generati correttamente
+ok_create_users	Utenti generati correttamente, è necessario scaricare l'elenco delle password e cifrarle per poter permettere il login
 reset_users	Reset utenti
 reset_confirm	Attenzione! Utenti e risultati delle annotazioni già presenti verranno eliminati. Si desidera continuare?
+list_users	Elenco utenti
+lock_users	Conferma utenti
+lock_confirm	Si desidera confermare l'elenco degli utenti? Dopo questa operazione le password non saranno più visualizzabili e gli utenti potranno effettuare il login. L'operazione è irreversibile
 users_per_photo	Annotazioni per ciascuna fotografia
 user_groups	Gruppi di utenti
 debug_photos	Numero immagini per l'utente di debug

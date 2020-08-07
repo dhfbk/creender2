@@ -1,5 +1,18 @@
 const routes = [
-    { path: "/admin", component: httpVueLoader('components/admin.vue') },
+    { path: "/admin", component: httpVueLoader('components/admin.vue'),
+        children: [
+            {
+                path: ":id/users",
+                component: httpVueLoader('components/admin-users.vue'),
+                name: "adminID"
+            },
+            {
+                path: "",
+                component: httpVueLoader('components/admin-home.vue')
+            }
+        ]
+    },
+    // { path: "/admin/:id", component: httpVueLoader('components/admin.vue'), name: "admin"},
     { path: "/", component: httpVueLoader('components/annotate.vue') },
     { path: "/statistics", component: httpVueLoader('components/annotate.vue') }
 ];
@@ -16,8 +29,8 @@ const app = new Vue({
         showAdminLogin: false
     },
     mounted: function() {
+        Vue.prototype.lang = {};
         $.ajax("api/", {
-            // async: false,
             method: "GET",
             data: {
                 action: "lang"
@@ -30,7 +43,7 @@ const app = new Vue({
     },
     methods: {
         logout: function() {
-            self = this;
+            var self = this;
             $.ajax("api/", {
                 method: "GET",
                 data: {
@@ -43,9 +56,8 @@ const app = new Vue({
             });
         },
         updateLoginInfo: function() {
-            self = this;
+            var self = this;
             $.ajax("api/", {
-                // async: false,
                 method: "GET",
                 data: {
                     action: "loginInfo"

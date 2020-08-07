@@ -20,6 +20,7 @@ require_once("include.php");
 require_once("Mysql_connector.class.php");
 
 $Action = isset($_REQUEST['action']) ? $_REQUEST['action'] : "";
+$DefaultImageFolder = "images";
 
 $DB = new Mysql_connector($DB_HOST, $DB_USERNAME, $DB_PASSWORD);
 $DB->select_db($DB_NAME);
@@ -31,6 +32,8 @@ if (!isset($_SESSION['Options'])) {
     $_SESSION['Options'] = loadOptions();
 }
 $Options = $_SESSION['Options'];
+
+require_once("update.php");
 
 $Langs = array();
 foreach (glob("lang/*.txt") as $filename) {
@@ -181,7 +184,8 @@ switch ($Action) {
 
         if ($useSocial) {
             $toPrepare = "SELECT * FROM institutions
-                    WHERE id = ? AND code = ? AND hidden = 0";
+                    WHERE id = ? AND code = ? AND hidden = 0
+                    AND allow_social_login = '1' AND confirmed_users = '1'";
             if ($stmt = $mysqli->prepare($toPrepare)) {
                 $stmt->bind_param("is", $institutionID, $institutionCode);
                 $stmt->execute();
@@ -190,11 +194,18 @@ switch ($Action) {
                 // Login ok
                 $okLogin = false;
                 if ($data = $r->fetch_assoc()) {
-                    $_SESSION['Institution'] = $institutionID;
+                    if ($data['allow_social_login']) {
+                        $_SESSION['Institution'] = $institutionID;
 
-                    $ret['result'] = "OK";
-                    $ret['data'] = array("url" => $google_client->createAuthUrl());
-                    $okLogin = true;
+                        $ret['result'] = "OK";
+                        $ret['data'] = array("url" => $google_client->createAuthUrl());
+                        $okLogin = true;
+                    }
+                    else {
+                        $ret['result'] = "ERR";
+                        $ret['error'] = "Impossibile eseguire il login social";
+                        $okLogin = true;
+                    }
                 }
                 $stmt->close();
 
@@ -206,9 +217,12 @@ switch ($Action) {
 
         $toPrepare = "SELECT u.* FROM users u
                 LEFT JOIN institutions i ON u.institution = i.id
-                WHERE u.username = ? AND u.password = ?
-                    AND i.id = ? AND i.code = ? AND i.hidden = 0";
+                WHERE u.username = ? AND u.password = MD5(?)
+                    AND i.id = ? AND i.code = ? AND i.hidden = 0
+                    AND confirmed_users = '1'";
         if ($stmt = $mysqli->prepare($toPrepare)) {
+            // echo $toPrepare . "\n";
+            // echo $username . "-" . $password . "-" . $institutionID . "-" . $institutionCode . "\n";
             $stmt->bind_param("ssis", $username, $password, $institutionID, $institutionCode);
             $stmt->execute();
             $r = $stmt->get_result();
@@ -329,11 +343,14 @@ switch ($Action) {
         break;
 
     case "getInstitutions":
+    case "getInstitutionInfo":
     case "addInstitution":
     case "deleteInstitution":
     case "editInstitution":
     case "populatePhoto":
     case "resetInstitution":
+    case "lockUsers":
+    case "exportCsv":
 
         if (!$_SESSION['Admin']) {
             $ret['result'] = "ERR";
@@ -354,6 +371,56 @@ switch ($Action) {
                 $ret['values'] = $res->fetch_all(MYSQLI_ASSOC);
                 break;
 
+            case "getInstitutionInfo":
+                $R = find("institutions", $_REQUEST['id'], $Lang['unknown_institutions']);
+
+                $Users = array();
+                $query = "SELECT * FROM users WHERE institution = '{$R['id']}'";
+                $res = $mysqli->query($query);
+                while ($data = $res->fetch_assoc()) {
+                    $Users[] = $data;
+                }
+
+                $ret['users'] = $Users;
+                $ret['data'] = $R;
+                $ret['result'] = "OK";
+                break;
+
+            case "exportCsv":
+                $R = find("institutions", $_REQUEST['id'], $Lang['unknown_institutions']);
+
+                $basic_info = fopen("php://output", 'w');
+                $headers = array("ID", "Code", "Username", "Password");
+                fputcsv($basic_info, $headers);
+
+                $query = "SELECT * FROM users WHERE institution = '{$R['id']}'";
+                $res = $mysqli->query($query);
+                while ($data = $res->fetch_assoc()) {
+                    $useData = array();
+                    $useData[] = $data['id'];
+                    $useData[] = $R['id'] . "-" . $R['code'];
+                    $useData[] = $data['username'];
+                    $useData[] = $data['password'];
+                    fputcsv($basic_info, $useData);
+                }
+
+                fclose($basic_info);
+
+                header("Content-disposition: attachment; filename=users.csv");
+                header("Content-Type: text/csv");
+                header('Content-Description: File Transfer');
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate');
+                header('Pragma: public');
+                header('Content-Length: ' . filesize("php://output"));
+                // ob_clean();
+                flush();
+
+                readfile("php://output");
+                exit();
+
+                break;
+
             case "resetInstitution":
                 $R = find("institutions", $_REQUEST['id'], $Lang['unknown_institutions']);
 
@@ -362,6 +429,23 @@ switch ($Action) {
                     WHERE u.institution = '{$R['id']}'");
                 $mysqli->query("DELETE FROM photos WHERE institution = '{$R['id']}'");
                 $mysqli->query("DELETE FROM users WHERE institution = '{$R['id']}'");
+
+                $data = array("confirmed_users" => 0);
+                $where = array("id" => $_REQUEST['id']);
+                $DB->queryupdate("institutions", $data, $where);
+
+                $ret['result'] = "OK";
+                break;
+
+            case "lockUsers":
+                $R = find("institutions", $_REQUEST['id'], $Lang['unknown_institutions']);
+
+                $data = array("confirmed_users" => 1);
+                $where = array("id" => $_REQUEST['id']);
+                $DB->queryupdate("institutions", $data, $where);
+
+                $query = "UPDATE users SET password = MD5(password) WHERE institution = '{$R['id']}'";
+                $DB->query($query);
 
                 $ret['result'] = "OK";
                 break;
@@ -398,6 +482,7 @@ switch ($Action) {
                     $ret['error'] = "Folder $Folder can contains only letters and numbers";
                     break;
                 }
+                $Folder = $DefaultImageFolder . "/" . $Folder;
                 if (!file_exists("../" . $Folder) || !is_dir("../" . $Folder)) {
                     $ret['result'] = "ERR";
                     $ret['error'] = "Folder $Folder does not exist";
@@ -494,7 +579,7 @@ switch ($Action) {
                 break;
 
             case "addInstitution":
-                $fields = array("name", "language", "code");
+                $fields = array("name", "language", "code", "allow_social_login");
 
                 $r = NULL;
                 if ($_REQUEST['id'] != 0) {

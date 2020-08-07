@@ -27,6 +27,14 @@
                             <label for="codeValue" class="col-form-label">{{ lang.institution_code }}:</label>
                             <input pattern="[0-9]{5}" class="form-control" id="codeValue" name="code" v-model="info.code" required="required">
                         </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="socialCheck" v-model="info.allow_social_login" />
+                                <label class="form-check-label" for="socialCheck">
+                                Permetti login social
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ lang.close }}</button>
